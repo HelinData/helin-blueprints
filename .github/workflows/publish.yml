@@ -1,0 +1,32 @@
+# CI publish pipeline (User Story 24554).
+# On tag v*: build image → push to the instance's dedicated private registry →
+# publish a new module version (POST /modules/{id}/versions).
+#
+# Uses Action secrets only: HELIN_CLIENT_ID, HELIN_CLIENT_SECRET, HELIN_INSTANCE,
+# REGISTRY_URL, REGISTRY_USER, REGISTRY_PASSWORD.
+# Never creates modules — module_id comes from the committed module.yaml.
+
+name: Publish module version
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO(24554): fail fast with a clear message if any required secret is missing
+
+      # TODO(24554): docker login to ${{ secrets.REGISTRY_URL }}
+
+      # TODO(24554): build module/ image, tag with the git tag (v1.2.3 → 1.2.3), push
+
+      # TODO(24554): get token via scripts/get-token.sh (US 24551), read module_id
+      # from module.yaml, POST /modules/{id}/versions with version, image_name, image_tag
+
+      - name: Placeholder
+        run: echo "TODO - see ADO user story 24554" && exit 1

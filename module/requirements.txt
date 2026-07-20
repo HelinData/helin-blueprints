@@ -1,0 +1,2 @@
+# TODO(24552): pin exact versions (helin-edge-sdk version must be pinned).
+# helin-edge-sdk==X.Y.Z

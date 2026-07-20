@@ -1,0 +1,10 @@
+# Module metadata — used by `make register` (one-time POST /modules).
+# After registration, module_id is written back here; commit it.
+# CI reads module_id from this file and never creates modules itself.
+
+name: sample-module
+meta_name: sample_module
+author: Your Company
+category_id: 1
+# module_id is added automatically by `make register` — do not fill in manually.
+# module_id: ""
