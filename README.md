@@ -14,7 +14,8 @@ This is a starter, not a framework: one correct end-to-end reference path that y
 ├── module/               # your module code (sample built on helin-edge-sdk)
 │   ├── main.py
 │   ├── Dockerfile
-│   └── requirements.txt
+│   ├── pyproject.toml
+│   └── poetry.lock
 ├── .github/workflows/
 │   └── publish.yml       # on tag v*: build → push image → publish module version
 ├── module.yaml           # module metadata; module_id written here after registration
@@ -51,3 +52,8 @@ Nothing is hardcoded: `scripts/get-token.sh` reads the auth domain and audience 
 ## Building your own module
 
 The sample in `module/` implements the `helin-edge-sdk` contract (`EdgeModuleRequestsHandler` with `on_get_configuration`, `on_set_configuration`, `on_get_health`) and runs via `EdgeModuleClient.from_edge_environment().run()`. Replace the sample logic with your own — keep the handler contract and the Dockerfile pattern (pinned dependencies, non-root user).
+
+A few things the platform handles for you, so you don't have to:
+
+- **Connection setup** — `from_edge_environment()` reads the `IOTEDGE_*` environment variables that the platform's edge runtime injects into the container. No broker addresses or credentials in your code or config.
+- **Configuration persistence** — anything in the container's own filesystem is lost when the container is recreated, so the sample writes its configuration to `$CONFIG_PATH` (default `/data/configuration.json`). The module's `container_template` binds a host directory to `/data`, which makes the file survive redeploys. Keep this pattern for any state your module can't afford to lose. Note the container runs as a non-root user (uid 1000), so the bound host directory must be writable by that uid.
