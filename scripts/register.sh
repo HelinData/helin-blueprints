@@ -6,6 +6,9 @@
 #
 # Required environment variables (same as scripts/get-token.sh):
 #   HELIN_INSTANCE, HELIN_CLIENT_ID, HELIN_CLIENT_SECRET
+# Stop on the first problem instead of continuing with broken data:
+# -e exit on any failed command, -u treat unset variables as errors,
+# -o pipefail a pipeline fails if any command in it fails (not just the last).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -13,13 +16,14 @@ cd "$(dirname "$0")/.."
 err() { echo "[register] ERROR: $*" >&2; }
 
 if grep -q '^module_id:' module.yaml; then
-  echo "[register] module.yaml already has a module_id — nothing to do."
+  echo "[register] skipped - module.yaml already has a module_id"
   exit 0
 fi
 
-# module.yaml is flat key: value YAML; strip inline comments and surrounding quotes.
+# Read one value from module.yaml. Values are taken literally, single line only.
 field() {
-  sed -n "s/^$1:[[:space:]]*//p" module.yaml | sed 's/[[:space:]]*#.*//; s/^"//; s/"$//'
+  line=$(grep "^$1:" module.yaml || true)      # the whole "key: value" line ("" if missing)
+  echo "$line" | cut -d ':' -f 2- | sed 's/^ *//; s/ *$//'  # value after the first ":", trimmed
 }
 
 name=$(field name)
@@ -59,4 +63,4 @@ module_uuid=$(jq -r '.uuid' <<<"$response")
 printf 'module_id: %s\nmodule_uuid: %s\n' "$module_id" "$module_uuid" >> module.yaml
 
 echo "[register] Module '$name' registered (module_id: $module_id)."
-echo "[register] module.yaml was updated — commit it so CI can publish versions."
+echo "[register] module.yaml was updated - commit it so CI can publish versions."
