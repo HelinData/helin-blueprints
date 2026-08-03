@@ -8,16 +8,19 @@ This is a starter, not a framework: one correct end-to-end reference path that y
 
 ```
 .
-├── scripts/              # helper scripts (M2M token, module registration)
+├── scripts/              # helper scripts (M2M token, registration, publishing)
 │   ├── get-token.sh      # fetch an M2M access token via client_credentials
-│   └── register.sh       # one-time module registration (POST /modules)
+│   ├── register.sh       # one-time module registration (POST /modules)
+│   └── publish-version.sh # publish a module version (used by CI)
 ├── module/               # your module code (sample built on helin-edge-sdk)
 │   ├── main.py
 │   ├── Dockerfile
-│   └── requirements.txt
+│   ├── pyproject.toml
+│   └── poetry.lock
 ├── .github/workflows/
 │   └── publish.yml       # on tag v*: build → push image → publish module version
 ├── module.yaml           # module metadata; module_id written here after registration
+├── module_metadata.json  # deploy-time templates sent with every published version
 ├── Makefile
 ├── .env.example          # placeholders for local development (no real secrets!)
 └── README.md
@@ -44,6 +47,17 @@ Set these as GitHub **Action secrets** on your repository:
 
 For local development, copy `.env.example` to `.env` and fill in the same values. **Never commit real secrets** — `.env` is gitignored.
 
+## What module_metadata.json is for
+
+Publishing a version registers more than an image reference — it also tells the platform **how to run your container on a node**. `module_metadata.json` holds that deploy-time configuration and is sent along with every published version:
+
+- `container_template` — Docker create options (port bindings, volume binds). The sample binds a host directory to `/data` so the module's persisted configuration survives redeploys.
+- `environment_template` — default environment variables for the container.
+- `configuration_template` — the initial runtime configuration; this is what the portal shows and what your `on_get/set_configuration` handlers exchange. The sample prefills it with the defaults from `module/main.py`.
+- `enabled` — whether the version can be deployed.
+
+Adjust it whenever your module needs different ports, volumes, env vars, or configuration fields.
+
 ## How authentication works
 
 Nothing is hardcoded: `scripts/get-token.sh` reads the auth domain and audience from your instance's `/api/v1/configuration/` endpoint, then runs the OAuth2 `client_credentials` grant with `HELIN_CLIENT_ID`/`HELIN_CLIENT_SECRET` and prints an access token.
@@ -51,3 +65,8 @@ Nothing is hardcoded: `scripts/get-token.sh` reads the auth domain and audience 
 ## Building your own module
 
 The sample in `module/` implements the `helin-edge-sdk` contract (`EdgeModuleRequestsHandler` with `on_get_configuration`, `on_set_configuration`, `on_get_health`) and runs via `EdgeModuleClient.from_edge_environment().run()`. Replace the sample logic with your own — keep the handler contract and the Dockerfile pattern (pinned dependencies, non-root user).
+
+A few things the platform handles for you, so you don't have to:
+
+- **Connection setup** — `from_edge_environment()` reads the `IOTEDGE_*` environment variables that the platform's edge runtime injects into the container. No broker addresses or credentials in your code or config.
+- **Configuration persistence** — anything in the container's own filesystem is lost when the container is recreated, so the sample writes its configuration to `$CONFIG_PATH` (default `/data/configuration.json`). The module's `container_template` binds a host directory to `/data`, which makes the file survive redeploys. Keep this pattern for any state your module can't afford to lose. Note the container runs as a non-root user (uid 1000), so the bound host directory must be writable by that uid.

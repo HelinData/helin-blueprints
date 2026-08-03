@@ -1,20 +1,78 @@
-"""Minimal sample module built on helin-edge-sdk (User Story 24552).
+"""Sample Helin Platform edge module built on helin-edge-sdk.
 
-Implements the EdgeModuleRequestsHandler contract and runs via
-EdgeModuleClient.from_edge_environment().run().
-Replace the sample logic with your own module code.
+It answers the platform's three direct methods - get_configuration,
+set_configuration and get_health - for an imaginary OPC-UA collector.
+
+To make it your own:
+  1. Replace DEFAULT_CONFIGURATION with your module's settings.
+  2. Put your module's behavior in the three ``on_*`` handlers.
+  3. Start your actual work (polling loop, server, ...) before ``.run()``,
+     which blocks to serve platform requests.
+
+Configuration is persisted to ``$CONFIG_PATH`` so it survives container
+restarts - see the README for details.
 """
 
-# TODO(24552): implement against helin-edge-sdk, roughly:
-#
-# from helin_edge_sdk import EdgeModuleClient, EdgeModuleRequestsHandler
-#
-# class SampleHandler(EdgeModuleRequestsHandler):
-#     def on_get_configuration(self): ...
-#     def on_set_configuration(self, configuration): ...
-#     def on_get_health(self): ...
-#
-# if __name__ == "__main__":
-#     EdgeModuleClient.from_edge_environment(SampleHandler()).run()
+import json
+import os
+import tempfile
+from pathlib import Path
+from typing import Any
 
-raise NotImplementedError("Sample module not implemented yet (see ADO user story 24552)")
+from helin_edge_sdk import (
+    ConfigurationFailedError,
+    EdgeModuleClient,
+    EdgeModuleRequestsHandler,
+)
+
+CONFIG_PATH = Path(os.getenv("CONFIG_PATH", "/data/configuration.json"))
+
+DEFAULT_CONFIGURATION: dict[str, Any] = {
+    "opcua_ip": "123.34.233.1",
+    "opcua_port": 4840,
+    "poll_interval_ms": 1000,
+}
+
+
+class SampleModule(EdgeModuleRequestsHandler):
+    def __init__(self, config_path: Path = CONFIG_PATH) -> None:
+        self._config_path = config_path
+        self._configuration = self._load()
+
+    def on_get_configuration(self, payload: dict[str, Any]) -> Any:
+        return self._configuration
+
+    def on_set_configuration(self, payload: dict[str, Any]) -> Any:
+        configuration = payload.get("configuration")
+        if configuration is None:
+            raise ConfigurationFailedError(
+                "Missing 'configuration' in payload",
+                status_code=400,
+                current_configuration=self._configuration,
+            )
+        self._save(configuration)
+        self._configuration = configuration
+        return {"configuration": configuration}
+
+    def on_get_health(self, payload: dict[str, Any]) -> Any:
+        return {"metrics": [{"name": "opcua_connected", "value": 1}]}
+
+    def _load(self) -> dict[str, Any]:
+        try:
+            return json.loads(self._config_path.read_text())
+        except FileNotFoundError:
+            return dict(DEFAULT_CONFIGURATION)
+
+    def _save(self, configuration: dict[str, Any]) -> None:
+        """Atomically replace the config file so a crash mid-write can't corrupt it."""
+        self._config_path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=self._config_path.parent, delete=False
+        ) as tmp:
+            json.dump(configuration, tmp)
+            tmp_path = tmp.name
+        os.replace(tmp_path, self._config_path)
+
+
+if __name__ == "__main__":
+    EdgeModuleClient.from_edge_environment(SampleModule()).run()
