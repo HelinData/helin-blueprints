@@ -1,10 +1,8 @@
-# CI publish pipeline (User Story 24554).
-# On tag v*: build image → push to the instance's dedicated private registry →
-# publish a new module version (POST /modules/{id}/versions).
+# On every version tag (v1.2.3): build the module image, push it to the
+# instance's private registry, and publish module version 1.2.3.
 #
-# Uses Action secrets only: HELIN_CLIENT_ID, HELIN_CLIENT_SECRET, HELIN_INSTANCE,
-# REGISTRY_URL, REGISTRY_USER, REGISTRY_PASSWORD.
-# Never creates modules — module_id comes from the committed module.yaml.
+# Uses Action secrets only - see the README for the six required secrets.
+# Never creates modules: the module_uuid comes from the committed module.yaml.
 
 name: Publish module version
 
@@ -13,20 +11,46 @@ on:
     tags:
       - "v*"
 
+env:
+  HELIN_INSTANCE: ${{ secrets.HELIN_INSTANCE }}
+  HELIN_CLIENT_ID: ${{ secrets.HELIN_CLIENT_ID }}
+  HELIN_CLIENT_SECRET: ${{ secrets.HELIN_CLIENT_SECRET }}
+  REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+  REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+  REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # TODO(24554): fail fast with a clear message if any required secret is missing
+      - name: Fail fast if a required secret is missing
+        run: |
+          missing=0
+          for name in HELIN_INSTANCE HELIN_CLIENT_ID HELIN_CLIENT_SECRET REGISTRY_URL REGISTRY_USER REGISTRY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Required Action secret '$name' is not set (repo Settings -> Secrets and variables -> Actions)"
+              missing=1
+            fi
+          done
+          exit "$missing"
 
-      # TODO(24554): docker login to ${{ secrets.REGISTRY_URL }}
+      - name: Derive version and image name from the tag
+        id: meta
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          meta_name=$(grep '^meta_name:' module.yaml | cut -d ':' -f 2- | sed 's/^ *//; s/ *$//')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "image=$REGISTRY_URL/$meta_name" >> "$GITHUB_OUTPUT"
 
-      # TODO(24554): build module/ image, tag with the git tag (v1.2.3 → 1.2.3), push
+      - name: Log in to the registry
+        run: echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY_URL" --username "$REGISTRY_USER" --password-stdin
 
-      # TODO(24554): get token via scripts/get-token.sh (US 24551), read module_id
-      # from module.yaml, POST /modules/{id}/versions with version, image_name, image_tag
+      - name: Build and push the image
+        run: |
+          docker build --tag "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" ./module
+          docker push "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}"
 
-      - name: Placeholder
-        run: echo "TODO - see ADO user story 24554" && exit 1
+      - name: Publish the module version
+        run: scripts/publish-version.sh "${{ steps.meta.outputs.version }}" "${{ steps.meta.outputs.image }}" "${{ steps.meta.outputs.version }}"
