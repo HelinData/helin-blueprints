@@ -8,9 +8,10 @@ This is a starter, not a framework: one correct end-to-end reference path that y
 
 ```
 .
-├── scripts/              # helper scripts (M2M token, module registration)
+├── scripts/              # helper scripts (M2M token, registration, publishing)
 │   ├── get-token.sh      # fetch an M2M access token via client_credentials
-│   └── register.sh       # one-time module registration (POST /modules)
+│   ├── register.sh       # one-time module registration (POST /modules)
+│   └── publish-version.sh # publish a module version (used by CI)
 ├── module/               # your module code (sample built on helin-edge-sdk)
 │   ├── main.py
 │   ├── Dockerfile
@@ -19,6 +20,7 @@ This is a starter, not a framework: one correct end-to-end reference path that y
 ├── .github/workflows/
 │   └── publish.yml       # on tag v*: build → push image → publish module version
 ├── module.yaml           # module metadata; module_id written here after registration
+├── module_metadata.json  # deploy-time templates sent with every published version
 ├── Makefile
 ├── .env.example          # placeholders for local development (no real secrets!)
 └── README.md
@@ -44,6 +46,17 @@ Set these as GitHub **Action secrets** on your repository:
 | `REGISTRY_PASSWORD` | Registry password |
 
 For local development, copy `.env.example` to `.env` and fill in the same values. **Never commit real secrets** — `.env` is gitignored.
+
+## What module_metadata.json is for
+
+Publishing a version registers more than an image reference — it also tells the platform **how to run your container on a node**. `module_metadata.json` holds that deploy-time configuration and is sent along with every published version:
+
+- `container_template` — Docker create options (port bindings, volume binds). The sample binds a host directory to `/data` so the module's persisted configuration survives redeploys.
+- `environment_template` — default environment variables for the container.
+- `configuration_template` — the initial runtime configuration; this is what the portal shows and what your `on_get/set_configuration` handlers exchange. The sample prefills it with the defaults from `module/main.py`.
+- `enabled` — whether the version can be deployed.
+
+Adjust it whenever your module needs different ports, volumes, env vars, or configuration fields.
 
 ## How authentication works
 
