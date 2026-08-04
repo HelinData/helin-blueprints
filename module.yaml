@@ -11,8 +11,10 @@ meta_name: sample-module
 author: Your Company
 description: Sample module built from the Helin module template
 logo_url:
-category_id: 1
+category_id: 9
 
 # Added automatically by `make register` - DO NOT fill in manually:
 # module_id: ...
 # module_uuid: ...
+module_id: 556
+module_uuid: f324adf4-16c8-4956-98a4-6fea97d50e4e
