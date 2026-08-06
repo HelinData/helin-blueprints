@@ -18,43 +18,45 @@ This is a starter, not a framework: one correct end-to-end reference path that y
 │   ├── pyproject.toml
 │   └── poetry.lock
 ├── .github/workflows/
-│   └── publish.yml       # on tag v*: build → push image → publish module version
-├── module.yaml           # module metadata; module_id written here after registration
+│   └── publish.yml       # on tag v*: build, push image, publish module version
+├── module.yaml           # module metadata; module_id/module_uuid written here after registration
 ├── module_metadata.json  # deploy-time templates sent with every published version
 ├── Makefile
-├── .env.example          # placeholders for local development (no real secrets!)
+├── .env.example          # placeholders for local development
 └── README.md
 ```
 
 ## Quickstart
 
-1. **Create your repo** — click **"Use this template"** on GitHub, then set the six [required secrets](#required-secrets) under *Settings → Secrets and variables → Actions*.
-2. **Register your module (once)** — edit `module.yaml` (name, meta_name, author, category_id), then run `make register`. The returned `module_id` is written back into `module.yaml`; commit it.
-3. **Publish a version** — push a git tag, e.g. `git tag v1.0.0 && git push origin v1.0.0`. CI builds the container, pushes it to your instance's private registry, and publishes version `1.0.0` of your module.
+1. **Create your repo** - click **"Use this template"** on GitHub, then set the six [required secrets](#required-secrets) under *Settings > Secrets and variables > Actions*.
+2. **Register your module (once)** - edit `module.yaml` (name, meta_name, author, category_id), then run `make register`. The returned `module_id` and `module_uuid` are written back into `module.yaml`; commit them.
+3. **Publish a version** - push a git tag, e.g. `git tag v1.0.0 && git push origin v1.0.0`. CI builds the container, pushes it to your instance's private registry, and publishes version `1.0.0` of your module.
+
+Once published, the module version can be deployed to a node from the portal.
 
 ## Required secrets
 
 Set these as GitHub **Action secrets** on your repository:
 
-| Secret | Description |
-| --- | --- |
-| `HELIN_CLIENT_ID` | M2M client ID for your platform instance |
-| `HELIN_CLIENT_SECRET` | M2M client secret |
-| `HELIN_INSTANCE` | Base URL of your platform instance |
-| `REGISTRY_URL` | URL of your instance's dedicated private container registry |
-| `REGISTRY_USER` | Registry username |
-| `REGISTRY_PASSWORD` | Registry password |
+| Secret | Description | Example |
+| --- | --- | --- |
+| `HELIN_CLIENT_ID` | M2M client ID for your platform instance | `A1b2C3d4E5f6...` |
+| `HELIN_CLIENT_SECRET` | M2M client secret | `(provided with your credentials)` |
+| `HELIN_INSTANCE` | Base URL of your platform instance (no trailing slash) | `https://your-instance.helinplatform.com` |
+| `REGISTRY_URL` | URL of your instance's dedicated private container registry | `your-instance.azurecr.io` |
+| `REGISTRY_USER` | Registry username | `your-instance` |
+| `REGISTRY_PASSWORD` | Registry password | `(provided with your credentials)` |
 
-For local development, copy `.env.example` to `.env` and fill in the same values. **Never commit real secrets** — `.env` is gitignored.
+For local development, copy `.env.example` to `.env` and fill in the values.
 
 ## What module_metadata.json is for
 
-Publishing a version registers more than an image reference — it also tells the platform **how to run your container on a node**. `module_metadata.json` holds that deploy-time configuration and is sent along with every published version:
+`module_metadata.json` is used for holding the deploy-time configuration:
 
-- `container_template` — Docker create options (port bindings, volume binds). The sample binds a host directory to `/data` so the module's persisted configuration survives redeploys.
-- `environment_template` — default environment variables for the container.
-- `configuration_template` — the initial runtime configuration; this is what the portal shows and what your `on_get/set_configuration` handlers exchange. The sample prefills it with the defaults from `module/main.py`.
-- `enabled` — whether the version can be deployed.
+- `container_template` - Docker create options (port bindings, volume binds). The sample binds a host directory to `/data` so the module's persisted configuration survives redeploys.
+- `environment_template` - default environment variables for the container.
+- `configuration_template` - the initial runtime configuration; this is what the portal shows and what your `on_get/set_configuration` handlers exchange. The sample prefills it with the defaults from `module/main.py`.
+- `enabled` - whether the version can be deployed.
 
 Adjust it whenever your module needs different ports, volumes, env vars, or configuration fields.
 
@@ -64,9 +66,19 @@ Nothing is hardcoded: `scripts/get-token.sh` reads the auth domain and audience 
 
 ## Building your own module
 
-The sample in `module/` implements the `helin-edge-sdk` contract (`EdgeModuleRequestsHandler` with `on_get_configuration`, `on_set_configuration`, `on_get_health`) and runs via `EdgeModuleClient.from_edge_environment().run()`. Replace the sample logic with your own — keep the handler contract and the Dockerfile pattern (pinned dependencies, non-root user).
+The sample in `module/` implements the `helin-edge-sdk` contract (`EdgeModuleRequestsHandler` with `on_get_configuration`, `on_set_configuration`, `on_get_health`) and runs via `EdgeModuleClient.from_edge_environment().run()`. Replace the sample logic with your own - keep the handler contract and the Dockerfile pattern (pinned dependencies, non-root user).
 
 A few things the platform handles for you, so you don't have to:
 
-- **Connection setup** — `from_edge_environment()` reads the `IOTEDGE_*` environment variables that the platform's edge runtime injects into the container. No broker addresses or credentials in your code or config.
-- **Configuration persistence** — anything in the container's own filesystem is lost when the container is recreated, so the sample writes its configuration to `$CONFIG_PATH` (default `/data/configuration.json`). The module's `container_template` binds a host directory to `/data`, which makes the file survive redeploys. Keep this pattern for any state your module can't afford to lose. Note the container runs as a non-root user (uid 1000), so the bound host directory must be writable by that uid.
+- **Connection setup** - `from_edge_environment()` reads the `IOTEDGE_*` environment variables that the platform's edge runtime injects into the container. No broker addresses or credentials in your code or config.
+- **Configuration persistence** - anything in the container's own filesystem is lost when the container is recreated, so the sample writes its configuration to `$CONFIG_PATH` (default `/data/configuration.json`). The module's `container_template` binds a host directory to `/data`, which makes the file survive redeploys. Keep this pattern for any state your module can't afford to lose. Note the container runs as a non-root user (uid 1000), so the bound host directory must be writable by that uid.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+| --- | --- |
+| `... is not set` | A required secret (CI) or `.env` value (local) is missing. |
+| Token request fails with 401 | Wrong `HELIN_CLIENT_ID` / `HELIN_CLIENT_SECRET`. |
+| `register` says `already has a module_id` | The module is already registered. To re-register, remove the `module_id`/`module_uuid` lines from `module.yaml`. |
+| `publish-version` says `no module_uuid` | Run `make register` once and commit `module.yaml` before publishing. |
+| CI fails at "Fail fast ... secret is missing" | Add the named secret under *Settings > Secrets and variables > Actions*. |
