@@ -20,7 +20,8 @@ for var in HELIN_INSTANCE HELIN_CLIENT_ID HELIN_CLIENT_SECRET; do
   fi
 done
 
-config=$(curl --silent --show-error --fail "$HELIN_INSTANCE/api/v1/configuration/")
+config=$(curl --silent --show-error --fail-with-body "$HELIN_INSTANCE/api/v1/configuration/") \
+  || { echo "[get-token] ERROR: could not fetch instance configuration: $config" >&2; exit 1; }
 
 payload=$(jq -n \
   --arg client_id "$HELIN_CLIENT_ID" \
@@ -28,7 +29,10 @@ payload=$(jq -n \
   --arg audience "$(jq -r '.auth.audience' <<<"$config")" \
   '{client_id: $client_id, client_secret: $client_secret, audience: $audience, grant_type: "client_credentials"}')
 
-curl --silent --show-error --fail \
+response=$(curl --silent --show-error --fail-with-body \
   --header "content-type: application/json" \
   --data "$payload" \
-  "https://$(jq -r '.auth.domain' <<<"$config")/oauth/token" | jq -r '.access_token'
+  "https://$(jq -r '.auth.domain' <<<"$config")/oauth/token") \
+  || { echo "[get-token] ERROR: token request failed: $response" >&2; exit 1; }
+
+jq -r '.access_token' <<<"$response"

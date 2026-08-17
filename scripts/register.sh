@@ -51,11 +51,12 @@ payload=$(jq -n \
   --arg category_id "$category_id" \
   '{name: $name, meta_name: $meta_name, author: $author, description: $description, logo_url: $logo_url, category_id: $category_id}')
 
-response=$(curl --silent --show-error --fail \
+response=$(curl --silent --show-error --fail-with-body \
   --header "content-type: application/json" \
   --header "authorization: Bearer $token" \
   --data "$payload" \
-  "$HELIN_INSTANCE/api/v1/modules")
+  "$HELIN_INSTANCE/api/v1/modules") \
+  || { err "POST /modules failed: $response"; exit 1; }
 
 module_id=$(jq -r '.id' <<<"$response")
 module_uuid=$(jq -r '.uuid' <<<"$response")

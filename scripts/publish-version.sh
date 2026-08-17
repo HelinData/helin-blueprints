@@ -40,10 +40,11 @@ payload=$(jq \
   '. + {version: $version, image_name: $image_name, image_tag: $image_tag}' \
   module_metadata.json)
 
-curl --silent --show-error --fail --output /dev/null \
+response=$(curl --silent --show-error --fail-with-body \
   --header "content-type: application/json" \
   --header "authorization: Bearer $token" \
   --data "$payload" \
-  "$HELIN_INSTANCE/api/v1/modules/$module_uuid/versions"
+  "$HELIN_INSTANCE/api/v1/modules/$module_uuid/versions") \
+  || { err "POST /modules/$module_uuid/versions failed: $response"; exit 1; }
 
 echo "[publish-version] Version $version published (image $image_name:$image_tag)."
