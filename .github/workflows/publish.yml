@@ -17,13 +17,8 @@ on:
         default: "linux/amd64,linux/arm64,linux/arm/v7"
         required: true
 
-env:
-  HELIN_INSTANCE: ${{ secrets.HELIN_INSTANCE }}
-  HELIN_CLIENT_ID: ${{ secrets.HELIN_CLIENT_ID }}
-  HELIN_CLIENT_SECRET: ${{ secrets.HELIN_CLIENT_SECRET }}
-  REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
-  REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
-  REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+permissions:
+  contents: read
 
 jobs:
   publish:
@@ -32,6 +27,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Fail fast if a required secret is missing
+        env:
+          HELIN_INSTANCE: ${{ secrets.HELIN_INSTANCE }}
+          HELIN_CLIENT_ID: ${{ secrets.HELIN_CLIENT_ID }}
+          HELIN_CLIENT_SECRET: ${{ secrets.HELIN_CLIENT_SECRET }}
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         run: |
           missing=0
           for name in HELIN_INSTANCE HELIN_CLIENT_ID HELIN_CLIENT_SECRET REGISTRY_URL REGISTRY_USER REGISTRY_PASSWORD; do
@@ -44,6 +46,8 @@ jobs:
 
       - name: Derive version and image name from the tag
         id: meta
+        env:
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
         run: |
           case "$GITHUB_REF_NAME" in
             v*) ;;
@@ -55,6 +59,10 @@ jobs:
           echo "image=$REGISTRY_URL/$meta_name" >> "$GITHUB_OUTPUT"
 
       - name: Log in to the registry
+        env:
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         run: echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY_URL" --username "$REGISTRY_USER" --password-stdin
 
       - uses: docker/setup-qemu-action@v3
@@ -68,4 +76,8 @@ jobs:
             --push ./module
 
       - name: Publish the module version
+        env:
+          HELIN_INSTANCE: ${{ secrets.HELIN_INSTANCE }}
+          HELIN_CLIENT_ID: ${{ secrets.HELIN_CLIENT_ID }}
+          HELIN_CLIENT_SECRET: ${{ secrets.HELIN_CLIENT_SECRET }}
         run: scripts/publish-version.sh "${{ steps.meta.outputs.version }}" "${{ steps.meta.outputs.image }}" "${{ steps.meta.outputs.version }}"
