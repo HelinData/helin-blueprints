@@ -55,6 +55,7 @@ jobs:
           esac
           version="${GITHUB_REF_NAME#v}"
           meta_name=$(grep '^meta_name:' module.yaml | cut -d ':' -f 2- | sed 's/^ *//; s/ *$//')
+          [ -n "$meta_name" ] || { echo "::error::meta_name is missing in module.yaml"; exit 1; }
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "image=$REGISTRY_URL/$meta_name" >> "$GITHUB_OUTPUT"
 
