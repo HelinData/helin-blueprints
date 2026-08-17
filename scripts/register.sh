@@ -60,6 +60,12 @@ response=$(curl --silent --show-error --fail \
 module_id=$(jq -r '.id' <<<"$response")
 module_uuid=$(jq -r '.uuid' <<<"$response")
 
+# check if we received correctly both id and uuid 
+if [ -z "$module_id" ] || [ "$module_id" = "null" ] || [ -z "$module_uuid" ] || [ "$module_uuid" = "null" ]; then
+  err "unexpected response from POST /modules: $response"
+  exit 1
+fi
+
 printf 'module_id: %s\nmodule_uuid: %s\n' "$module_id" "$module_uuid" >> module.yaml
 
 echo "[register] Module '$name' registered (module_id: $module_id)."
