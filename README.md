@@ -53,7 +53,7 @@ For local development, copy `.env.example` to `.env` and fill in the values.
 
 `module_metadata.json` is used for holding the deploy-time configuration:
 
-- `container_template` - Docker create options (port bindings, volume binds). The sample binds a host directory to `/data` so the module's persisted configuration survives redeploys.
+- `container_template` - Docker create options (port bindings, volume binds). The sample mounts a named volume at `/data` so the module's persisted configuration survives redeploys. Give the volume a **name unique to your module** - two modules created from this template that keep the same name would share one volume and overwrite each other's configuration.
 - `environment_template` - default environment variables for the container.
 - `configuration_template` - the initial runtime configuration; this is what the portal shows and what your `on_get/set_configuration` handlers exchange. The sample prefills it with the defaults from `module/main.py`.
 - `enabled` - whether the version can be deployed.
@@ -71,7 +71,7 @@ The sample in `module/` implements the `helin-edge-sdk` contract (`EdgeModuleReq
 A few things the platform handles for you, so you don't have to:
 
 - **Connection setup** - `from_edge_environment()` reads the `IOTEDGE_*` environment variables that the platform's edge runtime injects into the container. No broker addresses or credentials in your code or config.
-- **Configuration persistence** - anything in the container's own filesystem is lost when the container is recreated, so the sample writes its configuration to `$CONFIG_PATH` (default `/data/configuration.json`). The module's `container_template` binds a host directory to `/data`, which makes the file survive redeploys. Keep this pattern for any state your module can't afford to lose. Note the container runs as a non-root user (uid 1000), so the bound host directory must be writable by that uid.
+- **Configuration persistence** - anything in the container's own filesystem is lost when the container is recreated, so the sample writes its configuration to `$CONFIG_PATH` (default `/data/configuration.json`). The module's `container_template` mounts a named volume at `/data`, which makes the file survive redeploys. Keep this pattern for any state your module can't afford to lose. To inspect the data on a node, use `docker volume inspect <volume-name>`.
 
 ## Troubleshooting
 
