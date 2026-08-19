@@ -1,7 +1,9 @@
 {
   "container_template": {
     "HostConfig": {
-      "Binds": ["/home/helin/sample-module:/data"]
+      "Binds": [
+        "sample-module-data:/data"
+      ]
     }
   },
   "environment_template": {},
