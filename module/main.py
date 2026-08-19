@@ -15,6 +15,7 @@ restarts - see the README for details.
 
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -59,12 +60,20 @@ class SampleModule(EdgeModuleRequestsHandler):
 
     def _load(self) -> dict[str, Any]:
         try:
-            return json.loads(self._config_path.read_text())
+            loaded = json.loads(self._config_path.read_text())
+            if not isinstance(loaded, dict):
+                raise ValueError(f"expected a JSON object, got {type(loaded).__name__}")
+            return {**DEFAULT_CONFIGURATION, **loaded}
         except FileNotFoundError:
+            return dict(DEFAULT_CONFIGURATION)
+        except (OSError, ValueError) as exc:
+            print(
+                f"WARNING: could not load {self._config_path} ({exc}); using defaults",
+                file=sys.stderr,
+            )
             return dict(DEFAULT_CONFIGURATION)
 
     def _save(self, configuration: dict[str, Any]) -> None:
-        """Atomically replace the config file so a crash mid-write can't corrupt it."""
         self._config_path.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             mode="w", dir=self._config_path.parent, delete=False
