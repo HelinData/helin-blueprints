@@ -2,8 +2,6 @@
 
 A GitHub **template repository** for building and publishing modules to your Helin Platform instance. Create your own repo from this template, fill in the secrets, and go from zero to a published module version in minutes.
 
-This is a starter, not a framework: one correct end-to-end reference path that you grow your own repo from.
-
 ## What's inside
 
 ```
