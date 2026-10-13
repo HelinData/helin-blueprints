@@ -1,4 +1,4 @@
-# Helin Platform Starter Pack
+# Helin Platform Module Starter Pack
 
 A GitHub **template repository** for building and publishing modules to your Helin Platform instance. Create your own repo from this template, fill in the secrets, and go from zero to a published module version in minutes.
 
