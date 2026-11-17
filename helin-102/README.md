@@ -75,6 +75,9 @@ In this module `sensor_feed` is `failed` when the source cannot be reached, `for
 helin-102/
 ├── module.yaml            module metadata for `make register` (meta_name: helin-102)
 ├── module_metadata.json   deploy-time templates; exposes port 9600
+├── Makefile               test, build, register, publish
+├── .env.example           credentials for register and publish
+├── scripts/               get-token, register, publish-version, build-and-publish
 ├── README.md
 └── module/
     ├── main.py            SDK handler, relay loop, observation server on port 9600
@@ -104,23 +107,25 @@ To reuse the example in your own module, keep `collector.py`, `observation_state
 
 Entries without a string `asset` or a numeric `temperature_c` are discarded and counted in `edge_module_discarded_total`.
 
-## Make the platform scrape the module
+## Deploy it
 
-Exposing the endpoint is not enough: the node's metrics collector must list it. Add the module's endpoint to the `metrics_collector_bindings` of the template that deploys the module, in the same form HDC uses (`HelinDataCollector:9600`): `<module name in the deployment>:9600`. A node starts reporting after its next deployment. A connected node whose modules expose nothing shows as **Not observed**.
+This folder is self-contained: everything below runs from `helin-102/`. You need a Helin Platform instance with M2M credentials and the instance's private container registry, Docker with buildx, `jq`, `curl` and Poetry.
 
-## Run and test locally
+1. **Credentials.** Copy `.env.example` to `.env` and fill in the six values (`HELIN_INSTANCE`, `HELIN_CLIENT_ID`, `HELIN_CLIENT_SECRET`, `REGISTRY_URL`, `REGISTRY_USER`, `REGISTRY_PASSWORD`). `.env` is gitignored.
+2. **Check it.** `make test` runs the unit tests. `make build` builds the image locally.
+3. **Register the module once.** Edit `module.yaml` (`name`, `author`, `category_id`), then run `make register`. It writes `module_id` and `module_uuid` back into `module.yaml`. Keep `meta_name: helin-102` unless you rename the module, because the later steps depend on it.
+4. **Publish a version.** `make publish VERSION=1.0.0` logs in to your registry, builds and pushes `$REGISTRY_URL/helin-102:1.0.0` for amd64, arm64 and arm/v7 (override with `PLATFORMS`), and publishes version `1.0.0` using `module_metadata.json`.
+5. **Add the module to a template.** In the Portal, add `helin-102` to the template of the nodes that should run it and set its configuration (`source_url`, `destination_url`).
+6. **Make the platform scrape it.** In the same template, add `helin-102:9600` to the metrics collector bindings. The name before the port is the module's `meta_name`: the platform uses it as the module name in the node's deployment, so the metrics collector reaches the module under that name, and the same name becomes the `module_id` label. Without this binding the module runs but the Data pipelines page shows **Not observed**. HDC has the same setup, bound as `HelinDataCollector:9600`.
+7. **Deploy the template** to the node. The node starts reporting after the deployment, and the module appears in **Data pipelines** within about ten minutes, because modules report every five minutes.
 
-```bash
-cd helin-102/module
-poetry install
-poetry run pytest
-```
+The CI workflows of the repository root are not part of this folder. Run `make publish` locally, or call `scripts/build-and-publish.sh` from your own pipeline.
 
-The tests cover the relay logic, configuration validation, address canonicalisation, and the exposition itself, including one line asserted in the exact format HDC serves.
+## Verify
 
-## Register and publish
-
-The `scripts/`, `Makefile` and CI workflows of the repository root read `module.yaml` and `module_metadata.json` from the root. To publish this example, create a repository from the template and replace its `module/`, `module.yaml` and `module_metadata.json` with the ones in this folder, then follow the root README: `make register`, then push a `v*` tag.
+- On the node, `docker exec` into the module and fetch `http://localhost:9600/metrics`. You should see the six `edge_*` families with your `node_id` and `module_id=helin-102`.
+- In the Portal, open **Data pipelines**, then **Node detail**, select the node and the module. `sensor_feed` and `forward_readings` show **Flowing** once readings pass within the selected time window.
+- Point `destination_url` at an HDC `http_south` address and the graph links the two modules.
 
 ## References
 
