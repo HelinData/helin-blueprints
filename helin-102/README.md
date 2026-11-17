@@ -10,6 +10,46 @@ The platform does not ask modules about their pipelines. Every module reports **
 
 HDC (`hdc_observer`, from HDC v31.4) is the reference implementation. This module reproduces its exposition exactly, so the platform treats it like any other module and links it to HDC modules.
 
+## Architecture
+
+Readings and observations travel on separate planes. Readings take the route you configure. Observations about each hop leave the node independently through the metrics collector, so a broken readings path does not silence the observations that locate the break.
+
+```mermaid
+flowchart LR
+    Source["HTTP source<br/>sensor gateway"]
+
+    subgraph Node["Edge node"]
+        subgraph Module["helin-102"]
+            Ingress["ingress sensor_feed<br/>http_south"]
+            Convert["convert to Fahrenheit"]
+            Egress["egress forward_readings<br/>http_north"]
+            State["ObservationState"]
+            Exporter["collector.py<br/>/metrics on port 9600"]
+            Ingress --> Convert --> Egress
+            Ingress -. counts, state, assets .-> State
+            Egress -. counts, state, assets .-> State
+            State --> Exporter
+        end
+        MC["azureiotedge-metrics-collector"]
+        Exporter -- "scrape every 300 s<br/>helin-102:9600" --> MC
+    end
+
+    Destination["HTTP destination<br/>for example an HDC http_south"]
+    LA[("Log Analytics")]
+    Hub["IoT Hub"]
+    API["Ursa Minor API<br/>status and topology"]
+    Page["Portal: Data pipelines"]
+
+    Source -- readings --> Ingress
+    Egress -- readings --> Destination
+    MC -- observations --> LA
+    LA -- KQL --> API
+    Hub -- "node connection state" --> API
+    API --> Page
+```
+
+Solid arrows carry readings or observations. Dotted arrows are the module recording what its endpoints do. The platform draws the graph from the labels alone: `ingress_source` and `egress_destination` link modules and nodes, and the shared `asset` links the ingress to the egress inside the module.
+
 ## The observation contract
 
 Every endpoint (a connection data enters or leaves through) carries these labels:
