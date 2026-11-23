@@ -1,5 +1,5 @@
 [project]
-name = "helin-102"
+name = "pipeline-observability"
 version = "0.1.0"
 description = "Helin Platform edge module that reports its data flow to the data pipeline observability graph"
 authors = [{ name = "Your Company", email = "dev@example.com" }]

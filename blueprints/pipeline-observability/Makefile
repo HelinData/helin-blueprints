@@ -15,7 +15,7 @@ register:
 	./scripts/register.sh
 
 build:
-	docker build -t helin-102:local ./module
+	docker build -t pipeline-observability:local ./module
 
 publish:
 	./scripts/build-and-publish.sh $(VERSION)

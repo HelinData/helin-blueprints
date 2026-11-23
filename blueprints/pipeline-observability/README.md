@@ -1,6 +1,8 @@
-# helin-102: integrating a module with data pipeline observability
+# Blueprint: pipeline observability
 
-This example shows how a custom module becomes visible in the **Data pipelines** graph of the Helin Platform (the data pipeline observability, "DPO"). It is a sibling of the Module Starter Pack in the repository root and uses the same registration and publishing flow.
+This example shows how a custom module becomes visible in the **Data pipelines** graph of the Helin Platform (the data pipeline observability, "DPO"). It builds on the [module starter](../module-starter/) blueprint and uses the same registration and publishing flow.
+
+**Use this blueprint when** a custom module moves data and should show up, with live status, in the Data pipelines graph next to HDC modules.
 
 The module is a small relay: it polls an HTTP source for temperature readings in Celsius, adds a Fahrenheit value, and forwards them to an HTTP destination. The relay is deliberately simple. The point of the example is `module/collector.py`, which exposes the same observations the Helin Data Collector (HDC) exposes.
 
@@ -19,7 +21,7 @@ flowchart LR
     Source["HTTP source<br/>sensor gateway"]
 
     subgraph Node["Edge node"]
-        subgraph Module["helin-102"]
+        subgraph Module["pipeline-observability"]
             Ingress["ingress sensor_feed<br/>http_south"]
             Convert["convert to Fahrenheit"]
             Egress["egress forward_readings<br/>http_north"]
@@ -31,7 +33,7 @@ flowchart LR
             State --> Exporter
         end
         MC["azureiotedge-metrics-collector"]
-        Exporter -- "scrape every 300 s<br/>helin-102:9600" --> MC
+        Exporter -- "scrape every 300 s<br/>pipeline-observability:9600" --> MC
     end
 
     Destination["HTTP destination<br/>for example an HDC http_south"]
@@ -112,8 +114,8 @@ In this module `sensor_feed` is `failed` when the source cannot be reached, `for
 ## Layout
 
 ```
-helin-102/
-├── module.yaml            module metadata for `make register` (meta_name: helin-102)
+pipeline-observability/
+├── module.yaml            module metadata for `make register` (meta_name: pipeline-observability)
 ├── module_metadata.json   deploy-time templates; exposes port 9600
 ├── Makefile               test, build, register, publish
 ├── .env.example           credentials for register and publish
@@ -149,21 +151,21 @@ Entries without a string `asset` or a numeric `temperature_c` are discarded and 
 
 ## Deploy it
 
-This folder is self-contained: everything below runs from `helin-102/`. You need a Helin Platform instance with M2M credentials and the instance's private container registry, Docker with buildx, `jq`, `curl` and Poetry.
+This folder is self-contained: copy it into a repository of your own, or run everything below from `blueprints/pipeline-observability/`. You need a Helin Platform instance with M2M credentials and the instance's private container registry, Docker with buildx, `jq`, `curl` and Poetry.
 
 1. **Credentials.** Copy `.env.example` to `.env` and fill in the six values (`HELIN_INSTANCE`, `HELIN_CLIENT_ID`, `HELIN_CLIENT_SECRET`, `REGISTRY_URL`, `REGISTRY_USER`, `REGISTRY_PASSWORD`). `.env` is gitignored.
 2. **Check it.** `make test` runs the unit tests. `make build` builds the image locally.
-3. **Register the module once.** Edit `module.yaml` (`name`, `author`, `category_id`), then run `make register`. It writes `module_id` and `module_uuid` back into `module.yaml`. Keep `meta_name: helin-102` unless you rename the module, because the later steps depend on it.
-4. **Publish a version.** `make publish VERSION=1.0.0` logs in to your registry, builds and pushes `$REGISTRY_URL/helin-102:1.0.0` for amd64, arm64 and arm/v7 (override with `PLATFORMS`), and publishes version `1.0.0` using `module_metadata.json`.
-5. **Add the module to a template.** In the Portal, add `helin-102` to the template of the nodes that should run it and set its configuration (`source_url`, `destination_url`).
-6. **Make the platform scrape it.** In the same template, add `helin-102:9600` to the metrics collector bindings. The name before the port is the module's `meta_name`: the platform uses it as the module name in the node's deployment, so the metrics collector reaches the module under that name, and the same name becomes the `module_id` label. Without this binding the module runs but the Data pipelines page shows **Not observed**. HDC has the same setup, bound as `HelinDataCollector:9600`.
+3. **Register the module once.** Edit `module.yaml` (`name`, `author`, `category_id`), then run `make register`. It writes `module_id` and `module_uuid` back into `module.yaml`. Keep `meta_name: pipeline-observability` unless you rename the module, because the later steps depend on it.
+4. **Publish a version.** `make publish VERSION=1.0.0` logs in to your registry, builds and pushes `$REGISTRY_URL/pipeline-observability:1.0.0` for amd64, arm64 and arm/v7 (override with `PLATFORMS`), and publishes version `1.0.0` using `module_metadata.json`.
+5. **Add the module to a template.** In the Portal, add `pipeline-observability` to the template of the nodes that should run it and set its configuration (`source_url`, `destination_url`).
+6. **Make the platform scrape it.** In the same template, add `pipeline-observability:9600` to the metrics collector bindings. The name before the port is the module's `meta_name`: the platform uses it as the module name in the node's deployment, so the metrics collector reaches the module under that name, and the same name becomes the `module_id` label. Without this binding the module runs but the Data pipelines page shows **Not observed**. HDC has the same setup, bound as `HelinDataCollector:9600`.
 7. **Deploy the template** to the node. The node starts reporting after the deployment, and the module appears in **Data pipelines** within about ten minutes, because modules report every five minutes.
 
-The CI workflows of the repository root are not part of this folder. Run `make publish` locally, or call `scripts/build-and-publish.sh` from your own pipeline.
+This blueprint ships no CI workflow. Run `make publish` locally, or call `scripts/build-and-publish.sh` from your own pipeline.
 
 ## Verify
 
-- On the node, `docker exec` into the module and fetch `http://localhost:9600/metrics`. You should see the six `edge_*` families with your `node_id` and `module_id=helin-102`.
+- On the node, `docker exec` into the module and fetch `http://localhost:9600/metrics`. You should see the six `edge_*` families with your `node_id` and `module_id=pipeline-observability`.
 - In the Portal, open **Data pipelines**, then **Node detail**, select the node and the module. `sensor_feed` and `forward_readings` show **Flowing** once readings pass within the selected time window.
 - Point `destination_url` at an HDC `http_south` address and the graph links the two modules.
 

@@ -5,7 +5,7 @@
     },
     "HostConfig": {
       "Binds": [
-        "helin-102-data:/data"
+        "pipeline-observability-data:/data"
       ]
     }
   },

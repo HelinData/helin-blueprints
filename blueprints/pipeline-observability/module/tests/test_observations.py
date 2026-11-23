@@ -14,7 +14,7 @@ def exposition_after_one_poll(readings, **overrides):
     relay.apply_configuration(configuration)
     relay.run_once(configuration)
     registry = CollectorRegistry()
-    registry.register(ObservationCollector(state, node_id="vessel-x", module_id="helin-102"))
+    registry.register(ObservationCollector(state, node_id="vessel-x", module_id="pipeline-observability"))
     return registry, generate_latest(registry).decode()
 
 
@@ -40,7 +40,7 @@ def test_ingress_endpoint_carries_the_required_labels_and_its_canonical_source()
     ingress = next(s for s in samples(registry, "edge_endpoint_readings_total") if s.labels["direction"] == INGRESS)
     assert ingress.labels == {
         "node_id": "vessel-x",
-        "module_id": "helin-102",
+        "module_id": "pipeline-observability",
         "direction": "ingress",
         "ingress_id": "sensor_feed",
         "ingress_type": "http_south",
@@ -80,9 +80,9 @@ def test_renamed_egress_asset_is_reported_as_the_name_that_leaves_the_module():
 def test_module_level_families_carry_only_node_module_and_asset_labels():
     registry, _ = exposition_after_one_poll([{"asset": "boiler_1", "temperature_c": 20}, {"nope": 1}])
     [per_asset] = samples(registry, "edge_module_asset_readings_total")
-    assert per_asset.labels == {"node_id": "vessel-x", "module_id": "helin-102", "asset": "boiler_1"}
+    assert per_asset.labels == {"node_id": "vessel-x", "module_id": "pipeline-observability", "asset": "boiler_1"}
     [discarded] = samples(registry, "edge_module_discarded_total")
-    assert discarded.labels == {"node_id": "vessel-x", "module_id": "helin-102"}
+    assert discarded.labels == {"node_id": "vessel-x", "module_id": "pipeline-observability"}
     assert discarded.value == 1
 
 
@@ -102,5 +102,5 @@ def test_counter_line_matches_the_format_hdc_exposes_on_its_metrics_port():
     assert (
         'edge_endpoint_readings_total{direction="ingress",ingress_id="sensor_feed",'
         'ingress_source="http://sensor-gateway.local:8080/readings",ingress_type="http_south",'
-        'module_id="helin-102",node_id="vessel-x"} 1.0'
+        'module_id="pipeline-observability",node_id="vessel-x"} 1.0'
     ) in text

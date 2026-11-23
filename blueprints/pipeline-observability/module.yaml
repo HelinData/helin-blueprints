@@ -1,5 +1,5 @@
-name: Helin 102 DPO Relay
-meta_name: helin-102
+name: Pipeline Observability Relay
+meta_name: pipeline-observability
 author: Your Company
 description: Example module that relays sensor readings and reports its data flow to the data pipeline observability graph
 logo_url:

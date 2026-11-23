@@ -98,7 +98,7 @@ def serve_observations(state: ObservationState) -> None:
         ObservationCollector(
             state,
             node_id=os.environ.get("IOTEDGE_DEVICEID", socket.gethostname()),
-            module_id=os.environ.get("IOTEDGE_MODULEID", "helin-102"),
+            module_id=os.environ.get("IOTEDGE_MODULEID", "pipeline-observability"),
         )
     )
     start_http_server(OBSERVATION_PORT, registry=registry)
