@@ -30,7 +30,7 @@ The starting point for building and publishing a custom module to your Helin Pla
 ## Quickstart
 
 1. **Create your repo** - copy the contents of this folder, including `.github/` and the dotfiles, to the root of a new repository. The workflow in `.github/workflows/` only runs once it sits at the repository root. Then set the six [required secrets](#required-secrets) under *Settings > Secrets and variables > Actions*.
-2. **Register your module (once)** - edit `module.yaml` (name, meta_name, author, category_id), then run `make register`. The returned `module_id` and `module_uuid` are written back into `module.yaml`; commit them.
+2. **Register your module (once)** - edit `module.yaml` (name, meta_name, author, category_id), then run `make register`. The returned `module_id` and `module_uuid` are written back into `module.yaml`; commit them. Values in `module.yaml` are plain single-line text without quotes; `name` is the display name in the portal (max 32 characters), `meta_name` a unique lowercase-with-dashes slug. Never fill in `module_id` or `module_uuid` by hand. CI only publishes versions to the registered module and never creates modules.
 3. **Publish a version** - push a git tag, e.g. `git tag v1.0.0 && git push origin v1.0.0`. CI builds the container, pushes it to your instance's private registry, and publishes version `1.0.0` of your module.
 
 Once published, the module version can be deployed to a node from the portal.
@@ -68,6 +68,12 @@ Nothing is hardcoded: `scripts/get-token.sh` reads the auth domain and audience 
 ## Building your own module
 
 The sample in `module/` implements the `helin-edge-sdk` contract (`EdgeModuleRequestsHandler` with `on_get_configuration`, `on_set_configuration`, `on_get_health`) and runs via `EdgeModuleClient.from_edge_environment().run()`. Replace the sample logic with your own - keep the handler contract and the Dockerfile pattern (pinned dependencies, non-root user).
+
+To make it your own:
+
+1. Replace `DEFAULT_CONFIGURATION` with your module's settings.
+2. Put your module's behavior in the three `on_*` handlers.
+3. Start your actual work (polling loop, server, ...) before `.run()`, which blocks to serve platform requests.
 
 A few things the platform handles for you, so you don't have to:
 

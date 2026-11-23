@@ -1,9 +1,3 @@
-# On every version tag (v1.2.3): build the module image, push it to the
-# instance's private registry, and publish module version 1.2.3.
-#
-# Uses Action secrets only - see the README for the six required secrets.
-# Never creates modules: the module_uuid comes from the committed module.yaml.
-
 name: Publish module version
 
 on:

@@ -1,18 +1,3 @@
-"""Sample Helin Platform edge module built on helin-edge-sdk.
-
-It answers the platform's three direct methods - get_configuration,
-set_configuration and get_health - for an imaginary OPC-UA collector.
-
-To make it your own:
-  1. Replace DEFAULT_CONFIGURATION with your module's settings.
-  2. Put your module's behavior in the three ``on_*`` handlers.
-  3. Start your actual work (polling loop, server, ...) before ``.run()``,
-     which blocks to serve platform requests.
-
-Configuration is persisted to ``$CONFIG_PATH`` so it survives container
-restarts - see the README for details.
-"""
-
 import json
 import os
 import sys

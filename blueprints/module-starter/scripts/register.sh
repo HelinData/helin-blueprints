@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-# One-time module registration: POST /modules from module.yaml, then write the
-# returned module_id and module_uuid back into module.yaml (commit them).
-#
-# Idempotent: if module.yaml already contains a module_id, this is a no-op.
-#
-# Required environment variables (same as scripts/get-token.sh):
-#   HELIN_INSTANCE, HELIN_CLIENT_ID, HELIN_CLIENT_SECRET
-# Stop on the first problem instead of continuing with broken data:
-# -e exit on any failed command, -u treat unset variables as errors,
-# -o pipefail a pipeline fails if any command in it fails (not just the last).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -20,10 +10,9 @@ if grep -q '^module_id:' module.yaml; then
   exit 0
 fi
 
-# Read one value from module.yaml. Values are taken literally, single line only.
 field() {
-  line=$(grep "^$1:" module.yaml || true)      # the whole "key: value" line ("" if missing)
-  echo "$line" | cut -d ':' -f 2- | sed 's/^ *//; s/ *$//'  # value after the first ":", trimmed
+  line=$(grep "^$1:" module.yaml || true)
+  echo "$line" | cut -d ':' -f 2- | sed 's/^ *//; s/ *$//'
 }
 
 name=$(field name)
@@ -61,7 +50,6 @@ response=$(curl --silent --show-error --fail-with-body \
 module_id=$(jq -r '.id' <<<"$response")
 module_uuid=$(jq -r '.uuid' <<<"$response")
 
-# check if we received correctly both id and uuid 
 if [ -z "$module_id" ] || [ "$module_id" = "null" ] || [ -z "$module_uuid" ] || [ "$module_uuid" = "null" ]; then
   err "unexpected response from POST /modules: $response"
   exit 1
