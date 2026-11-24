@@ -1,0 +1,21 @@
+{
+  "container_template": {
+    "ExposedPorts": {
+      "9600/tcp": {}
+    },
+    "HostConfig": {
+      "Binds": [
+        "pipeline-observability-data:/data"
+      ]
+    }
+  },
+  "environment_template": {},
+  "configuration_template": {
+    "enabled": true,
+    "source_url": "http://sensor-gateway.local:8080/readings",
+    "destination_url": "https://datasink.example.com:6684/sensor-reading",
+    "poll_interval_s": 10,
+    "egress_asset_prefix": ""
+  },
+  "enabled": true
+}
